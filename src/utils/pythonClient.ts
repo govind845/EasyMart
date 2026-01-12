@@ -7,10 +7,22 @@ interface AssistantRequest {
   sessionId: string;
 }
 
+interface AssistantContext {
+  sessionId?: string;
+  intent?: string;
+  query?: string;
+  productId?: string;
+  quantity?: number;
+  products?: any[];
+}
+
 interface AssistantResponse {
   replyText: string;
+  message?: string;
   actions?: any[];
-  context?: any;
+  context?: AssistantContext;
+  intent?: string;
+  query?: string;
 }
 
 class PythonAssistantClient {
@@ -19,16 +31,15 @@ class PythonAssistantClient {
   constructor() {
     this.client = axios.create({
       baseURL: config.PYTHON_BASE_URL,
-      timeout: 60000, // 60 seconds for LLM + embedding generation
+      timeout: 60000,
       headers: {
         "Content-Type": "application/json",
       },
     });
 
-    // Request interceptor
     this.client.interceptors.request.use(
       (config: InternalAxiosRequestConfig) => {
-        logger.info("Python API request", { 
+        logger.info("Python API request", {
           url: config.url,
           baseURL: config.baseURL,
         });
@@ -40,10 +51,9 @@ class PythonAssistantClient {
       }
     );
 
-    // Response interceptor
     this.client.interceptors.response.use(
       (response: AxiosResponse) => {
-        logger.info("Python API response received", { 
+        logger.info("Python API response received", {
           status: response.status,
         });
         return response;
@@ -60,20 +70,17 @@ class PythonAssistantClient {
     );
   }
 
-  /**
-   * Send message to Python assistant
-   */
   async sendMessage(request: AssistantRequest): Promise<AssistantResponse> {
     try {
-      logger.info("Sending message to Python assistant", { 
+      logger.info("Sending message to Python assistant", {
         sessionId: request.sessionId,
         messageLength: request.message.length,
       });
 
-      // Transform request to match Python API format
       const pythonRequest = {
         message: request.message,
         session_id: request.sessionId,
+        sessionId: request.sessionId,
       };
 
       const response = await this.client.post<any>(
@@ -81,48 +88,44 @@ class PythonAssistantClient {
         pythonRequest
       );
 
-      logger.info("Assistant response received", { 
+      const data = response.data;
+
+      // Extract intent from both possible formats
+      const intent = data.context?.intent || data.intent;
+      const query = data.context?.query || data.query;
+      const replyText = data.replyText || data.message || "";
+
+      logger.info("Assistant response received", {
         sessionId: request.sessionId,
-        hasActions: !!response.data.suggested_actions,
+        hasContext: !!data.context,
+        intent: intent,
+        query: query,
       });
 
-      // Transform Python response to match Node backend format
-      // Also transform product fields: name→title, image_url→image, add url
-      const transformedProducts = (response.data.products || []).map((product: any) => ({
+      // Transform products if present (old format)
+      const transformedProducts = (data.products || []).map((product: any) => ({
         id: product.id,
-        title: product.name,           // name → title
+        title: product.name || product.title,
         price: product.price,
-        image: product.image_url,       // image_url → image
-        url: product.url || `/products/${product.id}`,  // add url field
+        image: product.image_url || product.image,
+        url: product.url || `/products/${product.id}`,
         description: product.description,
       }));
 
-      // Transform actions from strings to proper action objects
-      const transformedActions = (response.data.suggested_actions || []).map((action: string) => {
-        // If action is "search_results", create search_results action with products
-        if (action === "search_results") {
-          return {
-            type: "search_results",
-            data: {
-              results: transformedProducts,
-              totalCount: transformedProducts.length,
-              query: ""  // Could extract from context if needed
-            }
-          };
-        }
-        
-        // Other actions are just button labels (not rendered as actions currently)
-        return null;
-      }).filter(Boolean);  // Remove null actions
-
       const transformedResponse: AssistantResponse = {
-        replyText: response.data.message,
-        actions: transformedActions,  // Use transformed actions
+        replyText: replyText,
+        message: data.message,
+        actions: data.actions || [],
         context: {
-          sessionId: response.data.session_id,
-          intent: response.data.intent,
-          products: transformedProducts,  // keep for context
+          sessionId: data.session_id || request.sessionId,
+          intent: intent,
+          query: query,
+          productId: data.context?.productId || data.productId,
+          quantity: data.context?.quantity || data.quantity,
+          products: transformedProducts.length > 0 ? transformedProducts : undefined,
         },
+        intent: intent,
+        query: query,
       };
 
       return transformedResponse;
@@ -133,11 +136,13 @@ class PythonAssistantClient {
         status: error.response?.status,
       });
 
-      // Return fallback response if Python service is down
       if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
         logger.warn("Python service unavailable, returning fallback");
         return {
           replyText: "I'm temporarily unavailable. Please try again in a moment.",
+          context: {
+            intent: undefined,
+          },
         };
       }
 
@@ -145,9 +150,6 @@ class PythonAssistantClient {
     }
   }
 
-  /**
-   * Health check for Python service
-   */
   async healthCheck(): Promise<boolean> {
     try {
       const response = await this.client.get("/health", { timeout: 5000 });
@@ -158,9 +160,6 @@ class PythonAssistantClient {
     }
   }
 
-  /**
-   * Generic request method for custom endpoints
-   */
   async request<T = any>(method: string, endpoint: string, data?: any): Promise<{ data: T }> {
     try {
       const response = await this.client.request<T>({
@@ -176,5 +175,4 @@ class PythonAssistantClient {
   }
 }
 
-// Singleton instance
 export const pythonAssistantClient = new PythonAssistantClient();

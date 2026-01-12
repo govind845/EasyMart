@@ -37,6 +37,17 @@ export const config = {
   // Optional: server-side effective account id to use for cart operations
   SALESFORCE_EFFECTIVE_ACCOUNT_ID: process.env.SALESFORCE_EFFECTIVE_ACCOUNT_ID || "",
   SALESFORCE_API_VERSION: process.env.SALESFORCE_API_VERSION || "v57.0",
+
+  
+  // ✅ Shopware Store API (frontend / widget)
+  SHOPWARE_STORE_API_URL: process.env.SHOPWARE_STORE_API_URL || "",
+
+  // ✅ Shopware Admin API (catalog export)
+  SHOPWARE_ADMIN_API_URL: process.env.SHOPWARE_ADMIN_API_URL || "",
+  SHOPWARE_ADMIN_API_TOKEN: process.env.SHOPWARE_ADMIN_API_TOKEN || "",
+
+  SHOPWARE_SALES_CHANNEL_KEY: process.env.SHOPWARE_SALES_CHANNEL_KEY || "",
+
 };
 
 // Validate required environment variables
