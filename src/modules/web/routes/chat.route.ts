@@ -41,7 +41,6 @@ export default async function chatRoute(app: FastifyInstance) {
 
         logger.info("Intent detected", { intent, query });
 
-        // Handle search_products intent
         if (intent === "search_products") {
           try {
             const products = await searchProducts(query);
@@ -62,29 +61,29 @@ export default async function chatRoute(app: FastifyInstance) {
                 data: {
                   productId: p.id || p.productId,
                   title:
-                    p.translated?.name ||
+                    p.translated?.name ||      // SHOPWARE: Multi-language name
                     p.name ||
                     p.title ||
                     p.productName ||
                     "",
                   price:
-                    p.calculatedPrice?.unitPrice ??
+                    p.calculatedPrice?.unitPrice ??  // SHOPWARE: Context-aware price
                     p.unitPrice ??
                     p.price ??
                     0,
                   currency:
-                    p.calculatedPrice?.currency?.isoCode ||
+                    p.calculatedPrice?.currency?.isoCode ||  // SHOPWARE: Currency from context
                     p.currency ||
                     "EUR",
                   image:
-                    p.cover?.media?.url ||
+                    p.cover?.media?.url ||     // SHOPWARE: Cover image from media association
                     p.imageUrl ||
                     p.image ||
                     null,
                   url:
                     p.productUrl ||
                     p.url ||
-                    `/detail/${p.id || p.productId}`,
+                    `/detail/${p.id || p.productId}`,  // SHOPWARE: Default URL pattern
                 },
               })),
             });
@@ -97,7 +96,6 @@ export default async function chatRoute(app: FastifyInstance) {
           }
         }
 
-        // Handle add_to_cart intent
         if (intent === "add_to_cart") {
           const productId = response.context?.productId;
           const quantity = response.context?.quantity || 1;
@@ -136,7 +134,6 @@ export default async function chatRoute(app: FastifyInstance) {
           });
         }
 
-        // Handle view_cart intent
         if (intent === "view_cart") {
           try {
             const cart = await getCart(sessionId);
@@ -164,7 +161,6 @@ export default async function chatRoute(app: FastifyInstance) {
           }
         }
 
-        // Default response
         logger.info("Chat response sent", { sessionId, intent });
         return reply.send({
           replyText: response.replyText || "I'm here to help! Try asking about products.",

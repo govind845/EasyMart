@@ -13,27 +13,24 @@ interface CartRequestBody {
   productId?: string;
   product_id?: string;
   cartItemId?: string;
-  lineItemId?: string;
+  lineItemId?: string;       // SHOPWARE: Preferred name for cart item ID
   line_item_id?: string;
   quantity?: number;
   action?: "add" | "remove" | "set";
   sessionId?: string;
   session_id?: string;
-  contextToken?: string;
+  contextToken?: string;     // SHOPWARE: Alternative name for session token
 }
 
 interface CartQuerystring {
   sessionId?: string;
   session_id?: string;
-  contextToken?: string;
+  contextToken?: string;     // SHOPWARE: Alternative name for session token
 }
 
 export default async function cartRoutes(fastify: FastifyInstance) {
   const provider = (config.COMMERCE_PROVIDER || "shopify").toLowerCase();
 
-  /**
-   * POST /api/cart/add - Add item to cart
-   */
   fastify.post(
     "/api/cart/add",
     async (request: FastifyRequest<{ Body: CartRequestBody }>, reply: FastifyReply) => {
@@ -62,11 +59,12 @@ export default async function cartRoutes(fastify: FastifyInstance) {
 
         logger.info("Adding to cart", { productId, quantity, sessionId, action, provider });
 
+        // SHOPWARE: Handle add to cart via Store API
         if (provider === "shopware") {
           const result = await commerceAddToCart({
             productId,
             quantity,
-            sessionId,
+            sessionId,  // SHOPWARE: Used for sw-context-token management
           });
 
           if (result.success) {
@@ -115,9 +113,6 @@ export default async function cartRoutes(fastify: FastifyInstance) {
     }
   );
 
-  /**
-   * GET /api/cart - Get cart contents
-   */
   fastify.get(
     "/api/cart",
     async (request: FastifyRequest<{ Querystring: CartQuerystring }>, reply: FastifyReply) => {
@@ -127,6 +122,7 @@ export default async function cartRoutes(fastify: FastifyInstance) {
 
         logger.info("Getting cart", { sessionId, provider });
 
+        // SHOPWARE: Get cart via Store API
         if (provider === "shopware") {
           const cart = await commerceGetCart(sessionId);
           return reply.send({
@@ -136,7 +132,7 @@ export default async function cartRoutes(fastify: FastifyInstance) {
               items: cart.items,
               totalPrice: cart.totalPrice,
               totalItems: cart.totalItems,
-              currency: cart.currency || "EUR",
+              currency: cart.currency || "EUR",  // SHOPWARE: Default currency
             },
           });
         }
@@ -165,9 +161,6 @@ export default async function cartRoutes(fastify: FastifyInstance) {
     }
   );
 
-  /**
-   * PUT /api/cart/update - Update cart item quantity
-   */
   fastify.put(
     "/api/cart/update",
     async (request: FastifyRequest<{ Body: CartRequestBody }>, reply: FastifyReply) => {
@@ -186,6 +179,7 @@ export default async function cartRoutes(fastify: FastifyInstance) {
 
         logger.info("Updating cart item", { lineItemId, quantity, sessionId });
 
+        // SHOPWARE: Update line item quantity via PATCH endpoint
         if (provider === "shopware") {
           const result = await commerceUpdateCartItem(lineItemId, quantity, sessionId);
           return reply.send({
@@ -218,9 +212,6 @@ export default async function cartRoutes(fastify: FastifyInstance) {
     }
   );
 
-  /**
-   * DELETE /api/cart/remove - Remove item from cart
-   */
   fastify.delete(
     "/api/cart/remove",
     async (request: FastifyRequest<{ Body: CartRequestBody }>, reply: FastifyReply) => {
@@ -238,6 +229,7 @@ export default async function cartRoutes(fastify: FastifyInstance) {
 
         logger.info("Removing from cart", { lineItemId, sessionId });
 
+        // SHOPWARE: Remove line item via DELETE endpoint
         if (provider === "shopware") {
           const result = await commerceRemoveFromCart(lineItemId, sessionId);
           return reply.send({

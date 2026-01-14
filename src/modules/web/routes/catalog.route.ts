@@ -56,25 +56,26 @@ function normalizeShopifyProduct(product: any): NormalizedProduct {
   };
 }
 
+// SHOPWARE: Normalize Shopware product to common format
 function normalizeShopwareProduct(product: any): NormalizedProduct {
   return {
-    sku: product.productNumber,
-    title: product.translated?.name || product.name || "",
-    description: product.translated?.description || "",
+    sku: product.productNumber,                                    // SHOPWARE: SKU field
+    title: product.translated?.name || product.name || "",         // SHOPWARE: Multi-language name
+    description: product.translated?.description || "",            // SHOPWARE: Multi-language description
     price:
-      product.calculatedPrice?.unitPrice ??
+      product.calculatedPrice?.unitPrice ??                        // SHOPWARE: Context-aware price
       product.calculatedCheapestPrice?.unitPrice ??
       0,
     currency:
-      product.calculatedPrice?.currency?.isoCode ||
+      product.calculatedPrice?.currency?.isoCode ||                // SHOPWARE: Currency from context
       product.calculatedCheapestPrice?.currency?.isoCode ||
       "EUR",
     category: "General",
     tags: [],
-    image_url: product.cover?.media?.url,
-    vendor: product.manufacturer?.translated?.name || "EasyMart",
-    handle: product.id,
-    product_url: `/detail/${product.id}`,
+    image_url: product.cover?.media?.url,                          // SHOPWARE: Cover image from media
+    vendor: product.manufacturer?.translated?.name || "EasyMart",  // SHOPWARE: Manufacturer name
+    handle: product.id,                                            // SHOPWARE: UUID as handle
+    product_url: `/detail/${product.id}`,                          // SHOPWARE: URL pattern
     stock_status: product.available ? "in_stock" : "out_of_stock",
     specs: {
       weight: product.weight,
@@ -127,6 +128,7 @@ export default async function catalogRoutes(fastify: FastifyInstance) {
 
           allProducts.push(...products);
 
+          // SHOPWARE: Uses page-based pagination (increment page number)
           if (
             (config.COMMERCE_PROVIDER || "shopify").toLowerCase() ===
             "shopware"
@@ -152,7 +154,7 @@ export default async function catalogRoutes(fastify: FastifyInstance) {
           ).toLowerCase();
 
           if (provider === "salesforce") return normalizeSalesforceProduct(p);
-          if (provider === "shopware") return normalizeShopwareProduct(p);
+          if (provider === "shopware") return normalizeShopwareProduct(p);  // SHOPWARE: Use Shopware normalizer
           return normalizeShopifyProduct(p);
         });
 
@@ -185,9 +187,10 @@ export default async function catalogRoutes(fastify: FastifyInstance) {
               handle: sample.productId || sample.Id,
             };
           } else if (provider === "shopware") {
+            // SHOPWARE: Extract sample product info
             sampleProduct = {
               id: sample.id,
-              title: sample.translated?.name || sample.name,
+              title: sample.translated?.name || sample.name,  // SHOPWARE: Multi-language name
               handle: sample.id,
             };
           } else {

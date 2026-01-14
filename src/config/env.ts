@@ -39,10 +39,10 @@ export const config = {
   SALESFORCE_API_VERSION: process.env.SALESFORCE_API_VERSION || "v57.0",
 
   
-  // ✅ Shopware Store API (frontend / widget)
+  // Shopware Store API (frontend / widget)
   SHOPWARE_STORE_API_URL: process.env.SHOPWARE_STORE_API_URL || "",
 
-  // ✅ Shopware Admin API (catalog export)
+  // Shopware Admin API (catalog export)
   SHOPWARE_ADMIN_API_URL: process.env.SHOPWARE_ADMIN_API_URL || "",
   SHOPWARE_ADMIN_API_TOKEN: process.env.SHOPWARE_ADMIN_API_TOKEN || "",
 
